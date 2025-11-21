@@ -1,0 +1,49 @@
+spring:
+  data:
+    mongodb:
+      username: lcdamy
+      password: lcdamy
+      host: localhost
+      port: 27017
+      database: customer
+      authentication-database: admin
+
+  kafka:
+    bootstrap-servers: localhost:29092
+    consumer:
+      group-id: notification-group
+      auto-offset-reset: earliest
+      key-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.key.delegate.class: org.apache.kafka.common.serialization.StringDeserializer
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "*"
+        spring.json.use.type.headers: false
+        spring.json.value.default.type: java.util.LinkedHashMap
+
+  mail:
+    host: localhost
+    port: 1025
+    username: lcdamy
+    password: lcdamy
+    properties:
+      mail:
+        smtp:
+          trust: true
+        auth: true
+        starttls:
+          enabled: true
+        connectiontimeout: 5000
+        timeout: 3000
+        writetimeout: 5000
+
+server:
+  port: 8030
+
+#logging:
+#  file:
+#    name: /var/log/microservices/notification-service.log
+#  pattern:
+#    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"
+#    file:    "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"

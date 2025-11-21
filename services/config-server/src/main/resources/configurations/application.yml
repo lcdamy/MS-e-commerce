@@ -1,0 +1,19 @@
+spring:
+  output:
+    ansi:
+      enabled: always
+  cloud:
+    config:
+      override.system-properties: false
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces

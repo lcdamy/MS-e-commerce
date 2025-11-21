@@ -1,0 +1,54 @@
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: "http://localhost:9090/realms/e-commerce"
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: customer-service
+              uri: lb://CUSTOMER-SERVICE
+              predicates:
+                - Path=/api/v1/customer/**
+            - id: product-service
+              uri: lb://PRODUCT-SERVICE
+              predicates:
+                - Path=/api/v1/product/**
+            - id: order-service
+              uri: lb://ORDER-SERVICE
+              predicates:
+                - Path=/api/v1/order/**
+            - id: order-lines-service
+              uri: lb://ORDER-SERVICE
+              predicates:
+                - Path=/api/v1/order-lines/**
+            - id: payment-service
+              uri: lb://PAYMENT-SERVICE
+              predicates:
+                - Path=/api/v1/payment/**
+          discovery:
+            locator:
+              enabled: true
+              lower-case-service-id: true
+
+server:
+  port: 8222
+
+logging:
+  file:
+    name: /var/log/microservices/api-gateway.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"
+    file:    "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"
+
+management:
+  tracing:
+    sampling:
+      probability: 1.0
+
+  otlp:
+    tracing:
+      endpoint: http://localhost:4318/v1/traces

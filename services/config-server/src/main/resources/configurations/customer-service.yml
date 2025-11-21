@@ -1,0 +1,19 @@
+spring:
+  data:
+    mongodb:
+      username: lcdamy
+      password: lcdamy
+      host: localhost
+      port: 27017
+      database: customer
+      authentication-database: admin
+
+server:
+  port: 8040
+
+logging:
+  file:
+    name: /var/log/microservices/customer-service.log
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss.SSS}){faint} %clr(%-5level) %clr(%logger{36}){cyan} - %msg%n"
+    file:    "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level %logger{36} - %msg%n"

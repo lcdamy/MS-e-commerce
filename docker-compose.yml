@@ -1,0 +1,327 @@
+services:
+  postgres:
+    container_name: ms_pg_sql
+    image: postgres
+    environment:
+      POSTGRES_USER: lcdamy
+      POSTGRES_PASSWORD: Zudanga@1
+      PGDATA: /var/lib/postgresql/data
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - 5433:5432
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  pgadmin:
+    container_name: ms_admin
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin:/var/lib/admin
+    ports:
+      - 5050:80
+    networks:
+      - microservices-net
+    restart: unless-stopped
+
+  mongodb:
+    container_name: ms_mongo_db
+    image: mongo
+    ports:
+      - 27017:27017
+    volumes:
+      - mongo:/data
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: lcdamy
+      MONGO_INITDB_ROOT_PASSWORD: lcdamy
+    restart: unless-stopped
+    networks:
+      - microservices-net
+
+  mongo-express:
+    container_name: ms_mongo_express
+    image: mongo-express:latest
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: adminpass
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"   # <-- REQUIRED
+      ME_CONFIG_MONGODB_ADMINUSERNAME: lcdamy
+      ME_CONFIG_MONGODB_ADMINPASSWORD: lcdamy
+      ME_CONFIG_MONGODB_SERVER: mongodb
+    networks:
+      - microservices-net
+
+  broker:
+    image: confluentinc/cp-kafka:7.4.1
+    container_name: broker
+    ports:
+      - "9092:9092"     # for apps on host
+      - "29092:29092"   # optional second listener
+    environment:
+      # 1) KRaft on
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+
+      # 2) single-node controller quorum (nodeId@address)
+      #    since we're in docker, use the service name "broker"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: "1@broker:9093"
+
+      # 3) listeners
+      #    - CONTROLLER is only for controller traffic
+      #    - PLAINTEXT is for other containers
+      #    - PLAINTEXT_HOST is for your host machine
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092,PLAINTEXT_HOST://localhost:29092
+
+      # 4) you need a cluster id in KRaft; hardcode one
+      #    you can generate with: kafka-storage.sh random-uuid
+      CLUSTER_ID: "Zi1YQpJbQbq5eN1z5SxZ1A"   # any valid UUID-like string
+      # Confluent image uses KAFKA_CLUSTER_ID in some versions:
+      KAFKA_CLUSTER_ID: "Zi1YQpJbQbq5eN1z5SxZ1A"
+
+      # 5) usual topic settings for single-broker
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    restart: unless-stopped
+    networks:
+      - microservices-net
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    ports:
+      - "8086:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: e-commerce
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: broker:9092
+      DYNAMIC_CONFIG_ENABLED: "true"
+    depends_on:
+      - broker
+    networks:
+      - microservices-net
+
+  mail-dev:
+    container_name: ms_mail_dev
+    image: maildev/maildev
+    ports:
+      - 1080:1080
+      - 1025:1025
+    networks:
+      - microservices-net
+
+  zipkin:
+    container_name: ms_zipkin
+    image: openzipkin/zipkin
+    ports:
+      - 9411:9411
+    networks:
+      - microservices-net
+
+  keycloak:
+    container_name: ms_keycloak
+    image: quay.io/keycloak/keycloak:24.0.2
+    ports:
+      - "127.0.0.1:9090:8080"
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    networks:
+      - microservices-net
+    command:
+      - "start-dev"
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+    ports:
+      - "9091:9090"
+    networks:
+      - microservices-net
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    networks:
+      - microservices-net
+
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: loki
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - ./monitoring/loki/local-config.yaml:/etc/loki/local-config.yaml
+      - ./monitoring/loki/data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - microservices-net
+
+  promtail:
+    image: grafana/promtail:2.9.8
+    container_name: promtail
+    volumes:
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./monitoring/promtail/promtail.yml:/etc/promtail/promtail.yml
+    command: ["--config.file=/etc/promtail/promtail.yml"]
+    networks:
+      - microservices-net
+    depends_on:
+      - loki
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: tempo
+    command: ["-config.file=/etc/tempo/config.yml"]
+    volumes:
+      - ./monitoring/tempo/config.yml:/etc/tempo/config.yml
+    ports:
+      - "3200:3200"   # Tempo HTTP / status
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - microservices-net
+
+  wso2apim:
+    image: wso2/wso2am:4.4.0
+    container_name: wso2apim
+    ports:
+      - "9443:9443"   # Management UIs (HTTPS)
+      - "8280:8280"   # HTTP Gateway
+      - "8243:8243"   # HTTPS Gateway
+    environment:
+      - JAVA_OPTS=-Duser.timezone=Africa/Kigali
+    restart: unless-stopped
+    networks:
+      - microservices-net
+
+#  config-server:
+#    image: lcdamy/e-commerce-config-server:latest
+#    container_name: config-server
+#    ports:
+#      - "8888:8888"
+#    networks:
+#      - microservices-net
+#
+#  api-gateway:
+#    image: lcdamy/e-commerce-api-gateway:latest
+#    container_name: api-gateway
+#    depends_on:
+#      - config-server
+#      - discovery-service
+#      - keycloak
+#    ports:
+#      - "8222:8222"
+#    networks:
+#      - microservices-net
+#
+#  payment-service:
+#    image: lcdamy/e-commerce-payment:latest
+#    container_name: payment-service
+#    depends_on:
+#      - config-server
+#      - keycloak
+#      - postgres
+#    ports:
+#      - "8060:8060"
+#    networks:
+#      - microservices-net
+#
+#  product-service:
+#    image: lcdamy/e-commerce-product:latest
+#    container_name: product-service
+#    depends_on:
+#      - config-server
+#      - postgres
+#      - keycloak
+#    ports:
+#      - "8050:8050"
+#    networks:
+#      - microservices-net
+#
+#  discovery-service:
+#    image: lcdamy/e-commerce-discovery:latest
+#    container_name: discovery-service
+#    depends_on:
+#      - config-server
+#    ports:
+#      - "8761:8761"
+#    networks:
+#      - microservices-net
+#
+#  notification-service:
+#    image: lcdamy/e-commerce-notification:latest
+#    container_name: notification-service
+#    depends_on:
+#      - config-server
+#      - mongodb
+#      - keycloak
+#      - mail-dev
+#      - broker
+#    environment:
+#      SPRING_PROFILES_ACTIVE: docker
+#    ports:
+#      - "8030:8030"
+#    networks:
+#      - microservices-net
+#
+#  customer-service:
+#    image: lcdamy/e-commerce-customer:latest
+#    container_name: customer-service
+#    depends_on:
+#      - postgres
+#      - keycloak
+#      - config-server
+#    ports:
+#      - "8040:8040"
+#    networks:
+#      - microservices-net
+#
+#  order-service:
+#    image: lcdamy/e-commerce-order:latest
+#    container_name: order-service
+#    depends_on:
+#      - config-server
+#      - postgres
+#      - keycloak
+#      - broker
+#    ports:
+#      - "8070:8070"
+#    networks:
+#      - microservices-net
+
+networks:
+  microservices-net:
+    driver: bridge
+
+volumes:
+  postgres:
+  pgadmin:
+  mongo:

@@ -1,0 +1,163 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+
+  # ===========================================================
+  # SCRAPE DOCKER CONTAINER LOGS
+  # ===========================================================
+  - job_name: docker
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: docker
+          __path__: /var/lib/docker/containers/*/*-json.log
+          source: docker
+
+  # ===========================================================
+  # SCRAPE API-GATEWAY LOGS
+  # ===========================================================
+  - job_name: api-gateway
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: api-gateway
+          app: api-gateway
+          __path__: /var/log/microservices/api-gateway.log
+
+    pipeline_stages:
+      - regex:
+          expression: "^(?P<ts>[^ ]+) (?P<level>[A-Z]+) (?P<msg>.*)"
+      - timestamp:
+          source: ts
+          format: "2006-01-02T15:04:05.000Z07:00"
+      - labels:
+          level:
+      - output:
+          source: msg
+
+  # ===========================================================
+  # SCRAPE ORDER-SERVICE LOGS
+  # ===========================================================
+  - job_name: order-service
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: order-service
+          app: order-service
+          __path__: /var/log/microservices/order-service.log
+
+    pipeline_stages:
+      - regex:
+          expression: "^(?P<ts>[^ ]+) (?P<level>[A-Z]+) (?P<msg>.*)"
+      - timestamp:
+          source: ts
+          format: "2006-01-02T15:04:05.000Z07:00"
+      - labels:
+          level:
+      - output:
+          source: msg
+
+  # ===========================================================
+  # SCRAPE PRODUCT-SERVICE LOGS
+  # ===========================================================
+  - job_name: product-service
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: product-service
+          app: product-service
+          __path__: /var/log/microservices/product-service.log
+
+    pipeline_stages:
+      - regex:
+          expression: "^(?P<ts>[^ ]+) (?P<level>[A-Z]+) (?P<msg>.*)"
+      - timestamp:
+          source: ts
+          format: "2006-01-02T15:04:05.000Z07:00"
+      - labels:
+          level:
+      - output:
+          source: msg
+
+      - output:
+          source: msg
+
+  # ===========================================================
+  # SCRAPE PAYMENT-SERVICE LOGS
+  # ===========================================================
+  - job_name: payment-service
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: payment-service
+          app: payment-service
+          __path__: /var/log/microservices/payment-service.log
+
+    pipeline_stages:
+      - regex:
+          expression: "^(?P<ts>[^ ]+) (?P<level>[A-Z]+) (?P<msg>.*)"
+      - timestamp:
+          source: ts
+          format: "2006-01-02T15:04:05.000Z07:00"
+      - labels:
+          level:
+      - output:
+          source: msg
+
+      - output:
+          source: msg
+
+  # ===========================================================
+  # SCRAPE CUSTOMER-SERVICE LOGS
+  # ===========================================================
+  - job_name: customer-service
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: customer-service
+          app: customer-service
+          __path__: /var/log/microservices/customer-service.log
+
+    pipeline_stages:
+      - regex:
+          expression: "^(?P<ts>[^ ]+) (?P<level>[A-Z]+) (?P<msg>.*)"
+      - timestamp:
+          source: ts
+          format: "2006-01-02T15:04:05.000Z07:00"
+      - labels:
+          level:
+      - output:
+          source: msg
+
+      - output:
+          source: msg
+
+  # ===========================================================
+  # SCRAPE NOTIFICATION-SERVICE LOGS
+  # ===========================================================
+  - job_name: notification-service
+    static_configs:
+      - targets: [localhost]
+        labels:
+          job: notification-service
+          app: notification-service
+          __path__: /var/log/microservices/notification-service.log
+
+    pipeline_stages:
+      - regex:
+          expression: "^(?P<ts>[^ ]+) (?P<level>[A-Z]+) (?P<msg>.*)"
+      - timestamp:
+          source: ts
+          format: "2006-01-02T15:04:05.000Z07:00"
+      - labels:
+          level:
+      - output:
+          source: msg
