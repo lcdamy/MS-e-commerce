@@ -70,6 +70,12 @@
             <groupId>io.opentelemetry</groupId>
             <artifactId>opentelemetry-exporter-otlp</artifactId>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>io.netty</groupId>-->
+<!--            <artifactId>netty-resolver-dns-native-macos</artifactId>-->
+<!--            <version>4.1.128.Final</version>-->
+<!--            <classifier>osx-aarch_64</classifier>-->
+<!--        </dependency>-->
 	</dependencies>
 	<dependencyManagement>
 		<dependencies>
